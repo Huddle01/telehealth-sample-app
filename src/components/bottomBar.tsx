@@ -3,6 +3,7 @@ import {
   useDataMessage,
   useLocalAudio,
   useLocalPeer,
+  useLocalScreenShare,
   useLocalVideo,
   usePeerIds,
   useRoom,
@@ -16,6 +17,7 @@ import { Role } from '@huddle01/server-sdk/auth';
 import { useState } from 'react';
 import { PeerMetadata } from '@/utils/types';
 import clsx from 'clsx';
+import { startRecording, stopRecording } from './Recorder/Recording';
 
 const BottomBar = () => {
   const { isAudioOn, enableAudio, disableAudio } = useLocalAudio();
@@ -25,6 +27,8 @@ const BottomBar = () => {
   const { role, metadata, updateMetadata } = useLocalPeer<PeerMetadata>();
   const { peerIds } = usePeerIds({ roles: [Role.HOST, Role.CO_HOST] });
   const [isRequestSent, setIsRequestSent] = useState(false);
+  const { startScreenShare, stopScreenShare, shareStream } =
+    useLocalScreenShare();
 
   const {
     isChatOpen,
@@ -38,21 +42,11 @@ const BottomBar = () => {
 
   const handleRecording = async () => {
     if (isRecording) {
-      const stopRecording = await fetch(
-        `/rec/stopRecording?roomId=${room.roomId}`
-      );
-      const res = await stopRecording.json();
-      if (res) {
-        setIsRecording(false);
-      }
+      await stopRecording(room.roomId as string);
+      setIsRecording(false);
     } else {
-      const startRecording = await fetch(
-        `/rec/startRecording?roomId=${room.roomId}`
-      );
-      const { msg } = await startRecording.json();
-      if (msg) {
-        setIsRecording(true);
-      }
+      await startRecording(room.roomId as string);
+      setIsRecording(true);
     }
   };
 
@@ -65,7 +59,7 @@ const BottomBar = () => {
             onClick={handleRecording}
           >
             {isUploading ? BasicIcons.spin : BasicIcons.record}{' '}
-            {isRecording ? (isUploading ? 'Uploading...' : 'Stop') : 'Record'}
+            {isRecording ? (isUploading ? 'Starting...' : 'Stop Capturing') : 'Summarize'}
           </Button>
         ) : (
           <div className='w-24' />
@@ -110,6 +104,18 @@ const BottomBar = () => {
             {BasicIcons.speaker}
           </button>
         </ChangeDevice>
+        <ButtonWithIcon
+          onClick={() => {
+            if (shareStream !== null) {
+              stopScreenShare();
+            } else {
+              startScreenShare();
+            }
+          }}
+          className={clsx(shareStream !== null && 'bg-gray-500')}
+        >
+          {BasicIcons.screenShare}
+        </ButtonWithIcon>
         <ButtonWithIcon
           onClick={() => {
             updateMetadata({

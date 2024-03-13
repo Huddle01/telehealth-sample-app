@@ -4,6 +4,7 @@ export interface IChatMessage {
   name: string;
   text: string;
   isUser: boolean;
+  fileName?: string;
 }
 
 export interface BoxPosition {

@@ -34,7 +34,8 @@ import clsx from 'clsx';
 import { useEffectOnce } from 'usehooks-ts';
 import AudioRecorder from '@/components/Recorder/AudioRecorder';
 import GridContainer from '@/components/GridContainer';
-import Captions from '@/components/Caption/captions';
+import ShowCaptions from '@/components/Caption/showCaptions';
+import { startRecording, stopRecording } from '@/components/Recorder/Recording';
 
 export default function Component({ params }: { params: { roomId: string } }) {
   const { isVideoOn, enableVideo, disableVideo, stream } = useLocalVideo();
@@ -76,14 +77,39 @@ export default function Component({ params }: { params: { roomId: string } }) {
   const [isCopied, setIsCopied] = useState(false);
   const [isRequestSent, setIsRequestSent] = useState(false);
   const [requestedPeerId, setRequestedPeerId] = useState('');
+  const [activePeerId, setActivePeerId] = useState('');
   const router = useRouter();
   const { peerId } = useLocalPeer();
   const { metadata, role } = useLocalPeer<PeerMetadata>();
-  const { state } = useRoom({
-    onLeave: () => {
+  const { state, room } = useRoom({
+    onJoin: async () => {
+      setTimeout(async () => {
+        const recording = await startRecording(params.roomId);
+        console.log(recording);
+      }, 5000);
+    },
+    onLeave: async () => {
+      const recording = await stopRecording(params.roomId);
+      console.log(recording);
       router.push(`/${params.roomId}/lobby`);
     },
   });
+
+  useEffect(() => {
+    room.on('stream-added', (data) => {
+      if (data.label === 'audio') {
+        console.log('audio stream added', data);
+        setActivePeerId(data.peerId);
+      }
+    });
+
+    room.on('stream-closed', (data) => {
+      if (data.label === 'audio') {
+        console.log('audio stream closed', data);
+        setActivePeerId('');
+      }
+    });
+  }, [room]);
 
   const { sendData } = useDataMessage({
     async onMessage(payload, from, label) {
@@ -111,6 +137,18 @@ export default function Component({ params }: { params: { roomId: string } }) {
           isUser: from === peerId,
         });
       }
+
+      if (label === 'file') {
+        const { message, fileName, name } = JSON.parse(payload);
+        // fetch file from message and display it
+        addChatMessage({
+          name: name,
+          text: message,
+          isUser: from === peerId,
+          fileName,
+        });
+      }
+
       if (label === 'bgChange' && from !== peerId) {
         setActiveBg(payload);
       }
@@ -122,13 +160,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
       }
       if (label === 'server-message') {
         const { s3URL } = JSON.parse(payload);
-        const getData = (await roomDB.get(`${params.roomId}`)) as roomDetails;
-        const recordings = getData?.recordings || [];
-        recordings.push(s3URL);
-        await roomDB.set(`${params.roomId}`, {
-          ...getData,
-          recordings,
-        });
+        console.log('s3URL', s3URL);
       }
     },
   });
@@ -341,7 +373,11 @@ export default function Component({ params }: { params: { roomId: string } }) {
         {isChatOpen && <ChatBar />}
         {isParticipantsOpen && <ParticipantsBar />}
       </main>
-      <Captions />
+      {/* <ShowCaptions
+        audioStream={audioStream}
+        name={metadata?.displayName}
+        localPeerId={peerId}
+      /> */}
       <BottomBar />
       <div className='absolute bottom-6 right-6'>
         {showAcceptRequest && <AcceptRequest peerId={requestedPeerId} />}

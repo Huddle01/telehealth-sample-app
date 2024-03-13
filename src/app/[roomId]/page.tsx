@@ -9,6 +9,7 @@ import {
   useLocalAudio,
   useLocalMedia,
   useLocalPeer,
+  useLocalScreenShare,
   useLocalVideo,
   usePeerIds,
   useRoom,
@@ -77,10 +78,10 @@ export default function Component({ params }: { params: { roomId: string } }) {
   const [isCopied, setIsCopied] = useState(false);
   const [isRequestSent, setIsRequestSent] = useState(false);
   const [requestedPeerId, setRequestedPeerId] = useState('');
-  const [activePeerId, setActivePeerId] = useState('');
   const router = useRouter();
   const { peerId } = useLocalPeer();
   const { metadata, role } = useLocalPeer<PeerMetadata>();
+  const { videoTrack, audioTrack, shareStream } = useLocalScreenShare();
   const { state, room } = useRoom({
     onJoin: async () => {
       setTimeout(async () => {
@@ -96,20 +97,10 @@ export default function Component({ params }: { params: { roomId: string } }) {
   });
 
   useEffect(() => {
-    room.on('stream-added', (data) => {
-      if (data.label === 'audio') {
-        console.log('audio stream added', data);
-        setActivePeerId(data.peerId);
-      }
-    });
-
-    room.on('stream-closed', (data) => {
-      if (data.label === 'audio') {
-        console.log('audio stream closed', data);
-        setActivePeerId('');
-      }
-    });
-  }, [room]);
+    if (shareStream) {
+      setShowInviteGrid(false);
+    }
+  }, [shareStream]);
 
   const { sendData } = useDataMessage({
     async onMessage(payload, from, label) {
@@ -271,105 +262,67 @@ export default function Component({ params }: { params: { roomId: string } }) {
           backgroundRepeat: 'no-repeat',
         }}
       >
-        <section
-          className={clsx(
-            'flex flex-wrap justify-center w-full gap-4 px-4',
-            layout === 1 ? 'h-full' : 'h-3/5'
-          )}
-        >
-          {role !== Role.LISTENER ? (
-            <GridContainer>
-              {metadata?.isHandRaised && (
-                <span className='absolute top-4 right-4 text-4xl text-gray-200 font-medium'>
-                  ✋
-                </span>
-              )}
-              {stream ? (
+        <div className='flex w-full h-full p-2'>
+          {shareStream && (
+            <div className='w-3/4'>
+              <GridContainer className='w-full h-full border'>
                 <>
                   <Video
-                    stream={stream}
+                    stream={videoTrack && new MediaStream([videoTrack])}
                     name={metadata?.displayName ?? 'guest'}
                   />
-                  {isAudioOn && isRecordAudio && (
-                    <AudioRecorder
-                      stream={audioStream}
+                  <AudioRecorder
+                    stream={audioTrack && new MediaStream([audioTrack])}
+                    name={metadata?.displayName ?? 'guest'}
+                  />
+                </>
+              </GridContainer>
+            </div>
+          )}
+          <section
+            className={clsx(
+              'justify-center gap-4 px-4',
+              shareStream ? 'flex flex-col w-1/4' : 'flex flex-wrap w-full',
+              layout === 1 ? 'h-full' : 'h-3/5'
+            )}
+          >
+            {role !== Role.BOT && (
+              <GridContainer
+                className={clsx(shareStream ? 'w-full h-full my-3 mx-1' : '')}
+              >
+                {metadata?.isHandRaised && (
+                  <span className='absolute top-4 right-4 text-4xl text-gray-200 font-medium'>
+                    ✋
+                  </span>
+                )}
+                {stream ? (
+                  <>
+                    <Video
+                      stream={stream}
                       name={metadata?.displayName ?? 'guest'}
                     />
-                  )}
-                </>
-              ) : (
-                <div className='flex text-3xl font-semibold items-center justify-center w-24 h-24 bg-gray-700 text-gray-200 rounded-full'>
-                  {name[0]?.toUpperCase()}
-                </div>
-              )}
-              <span className='absolute bottom-4 left-4 text-gray-200 font-medium'>
-                {`${metadata?.displayName} (You)`}
-              </span>
-            </GridContainer>
-          ) : (
-            showRequestGrid && (
-              <GridContainer className='relative gap-2'>
-                <div className='absolute right-2 top-2'>
-                  <button onClick={() => setShowRequestGrid(!showRequestGrid)}>
-                    {BasicIcons.x}
-                  </button>
-                </div>
-                <span className='text-xl font-bold'>
-                  Send Request For Main Stage
+                    {isAudioOn && isRecordAudio && (
+                      <AudioRecorder
+                        stream={audioStream}
+                        name={metadata?.displayName ?? 'guest'}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className='flex text-3xl font-semibold items-center justify-center w-24 h-24 bg-gray-700 text-gray-200 rounded-full'>
+                    {name[0]?.toUpperCase()}
+                  </div>
+                )}
+                <span className='absolute bottom-4 left-4 text-gray-200 font-medium'>
+                  {`${metadata?.displayName} (You)`}
                 </span>
-                <Button
-                  onClick={() => {
-                    sendData({
-                      to: peerIds,
-                      payload: metadata?.displayName || '',
-                      label: 'requestForMainStage',
-                    });
-                    setIsRequestSent(true);
-                    setTimeout(() => {
-                      setIsRequestSent(false);
-                    }, 3000);
-                  }}
-                >
-                  {isRequestSent ? 'Request Sent' : 'Send Request'}
-                </Button>
               </GridContainer>
-            )
-          )}
-          {peerIds.length === 0 && showInviteGrid && (
-            <GridContainer className='relative'>
-              <div className='absolute right-2 top-2'>
-                <button onClick={() => setShowInviteGrid(!showInviteGrid)}>
-                  {BasicIcons.x}
-                </button>
-              </div>
-              <span className='text-xl font-bold'>Invite People</span>
-              <span className='text-gray-400'>
-                Share the link to invite people to this studio
-              </span>
-              <div className='flex space-x-2 mt-2'>
-                <span className='p-2 bg-gray-700/50 rounded-lg'>
-                  http://{window.location.host}/{params.roomId}
-                </span>
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `http://${window.location.host}/${params.roomId}`
-                    );
-                    setIsCopied(true);
-                    setTimeout(() => {
-                      setIsCopied(false);
-                    }, 3000);
-                  }}
-                >
-                  {isCopied ? 'Copied' : 'Copy'}
-                </Button>
-              </div>
-            </GridContainer>
-          )}
-          {peerIds.map((peerId) => (
-            <RemotePeer key={peerId} peerId={peerId} />
-          ))}
-        </section>
+            )}
+            {peerIds.map((peerId) => (
+              <RemotePeer key={peerId} peerId={peerId} />
+            ))}
+          </section>
+        </div>
         {isChatOpen && <ChatBar />}
         {isParticipantsOpen && <ParticipantsBar />}
       </main>

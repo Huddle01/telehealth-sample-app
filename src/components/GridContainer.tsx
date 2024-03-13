@@ -1,5 +1,5 @@
-import clsx from "clsx";
-import { FC } from "react";
+import clsx from 'clsx';
+import { FC } from 'react';
 
 interface GridContainerProps {
   children: React.ReactNode;
@@ -10,7 +10,7 @@ const GridContainer: FC<GridContainerProps> = ({ children, className }) => {
   return (
     <div
       className={clsx(
-        "bg-gray-800 relative w-[49%] rounded-lg flex flex-col items-center justify-center",
+        'bg-gray-800 relative w-[49%] rounded-lg flex flex-col items-center justify-center',
         className
       )}
     >

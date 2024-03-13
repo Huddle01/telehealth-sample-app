@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from "react";
-import VideoRecorder from "../Recorder/VideoRecorder";
-import { useStudioState } from "@/store/studioState";
+import React, { useEffect, useRef } from 'react';
+import VideoRecorder from '../Recorder/VideoRecorder';
+import { useStudioState } from '@/store/studioState';
 
 interface VideoProps {
-  stream: MediaStream;
+  stream: MediaStream | null;
   name: string;
 }
 
@@ -30,7 +30,7 @@ const Video = ({ stream, name }: VideoProps) => {
   return (
     <>
       <video
-        className="h-full w-full rounded-lg object-cover -scaleY-100"
+        className='h-full w-full rounded-lg object-cover -scaleY-100'
         ref={videoRef}
         autoPlay
         muted

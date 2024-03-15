@@ -147,7 +147,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
 
   return (
     <div className={clsx('flex flex-col h-screen bg-black')}>
-      <header className='flex items-center justify-between p-4'>
+      <header className='flex items-center justify-between pt-4 px-4'>
         <h1 className='text-white text-xl font-semibold'>Health01</h1>
         <div className='flex space-x-3'>
           <DropdownMenu>

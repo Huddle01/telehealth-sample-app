@@ -14,6 +14,7 @@ import ChangeDevice from './changeDevice';
 import { Role } from '@huddle01/server-sdk/auth';
 import { PeerMetadata } from '@/utils/types';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 
 const BottomBar = () => {
   const { isAudioOn, enableAudio, disableAudio } = useLocalAudio();
@@ -39,7 +40,7 @@ const BottomBar = () => {
         }
       },
       onProduceClose(label) {
-        if (label === 'screen') {
+        if (label) {
           setIsScreenShared(false);
         }
       },
@@ -66,7 +67,7 @@ const BottomBar = () => {
   };
 
   return (
-    <footer className='flex items-center justify-between p-4'>
+    <footer className='flex items-center justify-between px-4 py-2'>
       <div className='flex items-center'>
         {role === Role.HOST ? (
           <Button
@@ -85,8 +86,9 @@ const BottomBar = () => {
         )}
       </div>
 
-      {/* Middle Section */}
-      <div className={clsx('flex space-x-3', role === Role.HOST ? 'mr-4' : '')}>
+      <div
+        className={clsx('flex space-x-3', role === Role.HOST ? 'mr-12' : '')}
+      >
         <ChangeDevice deviceType='cam'>
           <button
             onClick={() => {
@@ -125,6 +127,10 @@ const BottomBar = () => {
         </ChangeDevice>
         <ButtonWithIcon
           onClick={() => {
+            if (isScreenShared) {
+              toast.error('Only one screen share is allowed at a time');
+              return;
+            }
             if (shareStream !== null) {
               stopScreenShare();
             } else {

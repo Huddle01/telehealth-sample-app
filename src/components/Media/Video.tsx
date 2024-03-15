@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import VideoRecorder from '../Recorder/VideoRecorder';
 import { useStudioState } from '@/store/studioState';
 
 interface VideoProps {
@@ -35,7 +34,6 @@ const Video = ({ stream, name }: VideoProps) => {
         autoPlay
         muted
       />
-      {isRecordVideo && <VideoRecorder stream={stream} name={name} />}
     </>
   );
 };

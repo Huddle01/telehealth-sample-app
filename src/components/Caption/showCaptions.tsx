@@ -1,14 +1,20 @@
-import { useDataMessage, useLocalAudio } from '@huddle01/react/hooks';
-import { useEffect, useRef, useState } from 'react';
+import { useDataMessage } from '@huddle01/react/hooks';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  TranscribeStreamingClient,
+  StartStreamTranscriptionCommand,
+} from '@aws-sdk/client-transcribe-streaming';
+import MicrophoneStream from 'microphone-stream';
+
+const MAX_RATE = 44100;
 
 interface Props {
-  audioStream: MediaStream | null;
+  mediaStream: MediaStream | null;
   name: string | undefined;
   localPeerId: string | null;
 }
 
-const ShowCaptions = ({ audioStream, name, localPeerId }: Props) => {
-  const wsRef = useRef<WebSocket | null>(null);
+const ShowCaptions = ({ mediaStream, name, localPeerId }: Props) => {
   const [remoteCaptions, setRemoteCaptions] = useState('');
   const [remoteSpeaker, setRemoteSpeaker] = useState('');
   const { sendData } = useDataMessage({
@@ -32,52 +38,100 @@ const ShowCaptions = ({ audioStream, name, localPeerId }: Props) => {
     });
   };
 
-  useEffect(() => {
-    console.log('audioStream', audioStream);
-    if (!audioStream) return;
-
-    wsRef.current = new WebSocket(`
-        wss://api.rev.ai/speechtotext/v1/stream?access_token=${process.env.NEXT_PUBLIC_REVAI_ACCESS_TOKEN}&content_type=audio/webm;layout=interleaved;rate=16000;format=S16LE;channels=1&skip_postprocessing=true&priority=speed`);
-
-    const mediaRecorder = new MediaRecorder(audioStream, {
-      mimeType: 'audio/webm',
+  const transcribeClient = useMemo(() => {
+    return new TranscribeStreamingClient({
+      region: 'ap-south-1',
+      credentials: {
+        accessKeyId: process.env.NEXT_PUBLIC_AWS_KEY_ID!,
+        secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_KEY!,
+      },
     });
+  }, []);
 
-    wsRef.current.onopen = () => {
-      console.log('Socket connection opened');
+  const microPhoneStream = useMemo(() => {
+    if (!mediaStream) return;
+    const microStream = new MicrophoneStream();
+    microStream.setStream(mediaStream);
+    return microStream;
+  }, [mediaStream]);
 
-      mediaRecorder.ondataavailable = async (e) => {
-        if (e.data.size > 0) {
-          const buffer = await e.data.arrayBuffer();
-          wsRef.current?.send(buffer);
+  const encodePCMChunk = useCallback(
+    (chunk: any) => {
+      const microphoneStream = new MicrophoneStream();
+      if (!mediaStream) return;
+      microphoneStream.setStream(mediaStream);
+      const input = MicrophoneStream.toRaw(chunk);
+      let offset = 0;
+      const buffer = new ArrayBuffer(input.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < input.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, input[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return Buffer.from(buffer);
+    },
+    [mediaStream]
+  );
+
+  const getAudioStream = useMemo(
+    () =>
+      async function* () {
+        if (!microPhoneStream) return;
+        try {
+          for await (const chunk of microPhoneStream) {
+            if (chunk.length <= MAX_RATE) {
+              yield { AudioEvent: { AudioChunk: encodePCMChunk(chunk) } };
+            }
+          }
+        } catch (err) {
+          console.error(err);
         }
-      };
-    };
+      },
+    [microPhoneStream, encodePCMChunk]
+  );
 
-    wsRef.current.onmessage = async (event) => {
-      console.log('Socket message received!', event.data);
+  const startStreaming = useCallback(
+    async (callback: (transcript: string) => void) => {
+      if (!transcribeClient) return;
+      const command = new StartStreamTranscriptionCommand({
+        LanguageCode: 'en-US',
+        MediaEncoding: 'pcm',
+        MediaSampleRateHertz: MAX_RATE,
+        AudioStream: getAudioStream(),
+      });
 
-      const data = JSON.parse(event.data);
-      console.log({ type: data.type, elements: data.elements });
+      try {
+        const data = await transcribeClient.send(command);
+        if (!data.TranscriptResultStream) return;
 
-      if (data.type === 'partial') {
-        let text = '';
-        data.elements.forEach((textObj: any) => {
-          text = text + ' ' + textObj.value;
-        });
-        console.log('Partial text:', text);
-        await sendCaptions(text);
+        for await (const event of data.TranscriptResultStream) {
+          if (event.TranscriptEvent && event.TranscriptEvent.Transcript) {
+            const results = event.TranscriptEvent.Transcript.Results;
+            if (
+              results &&
+              results.length &&
+              !results[0]?.IsPartial &&
+              results[0]?.Alternatives?.length
+            ) {
+              const newTranscript = results[0].Alternatives[0].Transcript;
+              callback(newTranscript + ' ');
+            }
+          }
+        }
+      } catch (err) {
+        console.error(err);
       }
-    };
+    },
+    [transcribeClient, getAudioStream]
+  );
 
-    mediaRecorder.start();
-
-    setInterval(() => {
-      if (mediaRecorder?.state === 'recording') {
-        mediaRecorder.requestData();
-      }
-    }, 500);
-  }, [audioStream]);
+  useEffect(() => {
+    if (mediaStream) {
+      startStreaming((text) => {
+        sendCaptions(text);
+      });
+    }
+  }, [mediaStream, startStreaming]);
 
   return (
     <>
@@ -92,4 +146,4 @@ const ShowCaptions = ({ audioStream, name, localPeerId }: Props) => {
   );
 };
 
-export default ShowCaptions;
+export default memo(ShowCaptions);

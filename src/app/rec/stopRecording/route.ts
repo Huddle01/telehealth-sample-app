@@ -1,11 +1,5 @@
 import { Recorder } from "@huddle01/server-sdk/recorder";
 
-interface Recordings {
-  id: string;
-  recordingUrl: string;
-  recordingSize: number;
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const roomId = searchParams.get("roomId");

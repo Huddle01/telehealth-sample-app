@@ -1,11 +1,9 @@
 'use client';
 import {
-  useDataMessage,
   useLocalAudio,
   useLocalPeer,
   useLocalScreenShare,
   useLocalVideo,
-  usePeerIds,
   useRoom,
 } from '@huddle01/react/hooks';
 import { Button } from '@/components/ui/button';
@@ -14,19 +12,14 @@ import { useStudioState } from '@/store/studioState';
 import ButtonWithIcon from './ui/buttonWithIcon';
 import ChangeDevice from './changeDevice';
 import { Role } from '@huddle01/server-sdk/auth';
-import { useState } from 'react';
 import { PeerMetadata } from '@/utils/types';
 import clsx from 'clsx';
-import { startRecording, stopRecording } from './Recorder/Recording';
 
 const BottomBar = () => {
   const { isAudioOn, enableAudio, disableAudio } = useLocalAudio();
   const { isVideoOn, enableVideo, disableVideo } = useLocalVideo();
-  const { sendData } = useDataMessage();
   const { leaveRoom, room } = useRoom();
   const { role, metadata, updateMetadata } = useLocalPeer<PeerMetadata>();
-  const { peerIds } = usePeerIds({ roles: [Role.HOST, Role.CO_HOST] });
-  const [isRequestSent, setIsRequestSent] = useState(false);
   const { startScreenShare, stopScreenShare, shareStream } =
     useLocalScreenShare();
 
@@ -38,15 +31,27 @@ const BottomBar = () => {
     isRecording,
     setIsRecording,
     isUploading,
+    isScreenShareDisabled,
+    setIsScreenShareDisabled,
   } = useStudioState();
 
   const handleRecording = async () => {
     if (isRecording) {
-      await stopRecording(room.roomId as string);
-      setIsRecording(false);
+      const stopRecording = await fetch(
+        `/rec/stopRecording?roomId=${room.roomId}`
+      );
+      const res = await stopRecording.json();
+      if (res) {
+        setIsRecording(false);
+      }
     } else {
-      await startRecording(room.roomId as string);
-      setIsRecording(true);
+      const startRecording = await fetch(
+        `/rec/startRecording?roomId=${room.roomId}`
+      );
+      const { msg } = await startRecording.json();
+      if (msg) {
+        setIsRecording(true);
+      }
     }
   };
 
@@ -59,7 +64,11 @@ const BottomBar = () => {
             onClick={handleRecording}
           >
             {isUploading ? BasicIcons.spin : BasicIcons.record}{' '}
-            {isRecording ? (isUploading ? 'Starting...' : 'Stop Capturing') : 'Summarize'}
+            {isRecording
+              ? isUploading
+                ? 'Starting...'
+                : 'Stop Capturing'
+              : 'Summarize'}
           </Button>
         ) : (
           <div className='w-24' />
@@ -110,9 +119,13 @@ const BottomBar = () => {
               stopScreenShare();
             } else {
               startScreenShare();
+              setIsScreenShareDisabled(true);
             }
           }}
-          className={clsx(shareStream !== null && 'bg-gray-500')}
+          disabled={isScreenShareDisabled}
+          className={clsx(
+            (shareStream !== null || !isScreenShareDisabled) && 'bg-gray-500'
+          )}
         >
           {BasicIcons.screenShare}
         </ButtonWithIcon>

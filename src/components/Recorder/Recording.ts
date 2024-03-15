@@ -33,9 +33,9 @@ export const startRecording = async (roomId: string) => {
   const record = await recorder.startRecording({
     roomId,
     token: accessToken,
-    options: {
-      audioOnly: true,
-    },
+    // options: {
+    //   audioOnly: true,
+    // },
   });
 
   return record;

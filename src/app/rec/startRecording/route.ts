@@ -1,12 +1,12 @@
-import { AccessToken, Role } from "@huddle01/server-sdk/auth";
-import { Recorder } from "@huddle01/server-sdk/recorder";
+import { AccessToken, Role } from '@huddle01/server-sdk/auth';
+import { Recorder } from '@huddle01/server-sdk/recorder';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const roomId = searchParams.get("roomId");
+  const roomId = searchParams.get('roomId');
 
   if (!roomId) {
-    return new Response("Missing roomId", { status: 400 });
+    return new Response('Missing roomId', { status: 400 });
   }
 
   const accessToken = new AccessToken({
@@ -35,13 +35,15 @@ export async function GET(request: Request) {
     process.env.API_KEY!
   );
 
+  console.log('token', token);
+  console.log('roomId', roomId);
+
   const recording = await recorder.startRecording({
     roomId: roomId as string,
     token,
-    customLayoutUrl: `https://studio-01.vercel.app/rec/${roomId}?token=${token}`,
   });
 
-  console.log("recording started", recording);
+  console.log('recording started', recording);
 
   return new Response(JSON.stringify(recording), {
     status: 200,

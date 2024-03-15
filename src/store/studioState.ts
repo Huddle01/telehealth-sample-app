@@ -56,6 +56,8 @@ interface StudioState {
   setIsRecordVideo: (val: boolean) => void;
   layout: 1 | 2;
   setLayout: (val: 1 | 2) => void;
+  isScreenShareDisabled: boolean;
+  setIsScreenShareDisabled: (val: boolean) => void;
 }
 
 export const useStudioState = create<StudioState>((set) => ({
@@ -139,4 +141,7 @@ export const useStudioState = create<StudioState>((set) => ({
   setIsRecordVideo: (val: boolean) => set({ isRecordVideo: val }),
   layout: 1,
   setLayout: (val: 1 | 2) => set({ layout: val }),
+  isScreenShareDisabled: false,
+  setIsScreenShareDisabled: (val: boolean) =>
+    set({ isScreenShareDisabled: val }),
 }));

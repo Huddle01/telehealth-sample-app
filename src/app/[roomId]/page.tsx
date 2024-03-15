@@ -23,20 +23,15 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import BottomBar from '@/components/bottomBar';
 import { Button } from '@/components/ui/button';
-import { PeerMetadata, roomDetails } from '@/utils/types';
+import { PeerMetadata } from '@/utils/types';
 import ChatBar from '@/components/sidebars/ChatBar/chatbar';
 import ParticipantsBar from '@/components/sidebars/participantsSidebar/participantsBar';
-import SettingsDialog from '@/components/Settings/settingsDialog';
 import Video from '@/components/Media/Video';
 import { Role } from '@huddle01/server-sdk/auth';
-import AcceptRequest from '@/components/RequestModal';
-import { roomDB } from '@/utils/redis';
 import clsx from 'clsx';
-import { useEffectOnce } from 'usehooks-ts';
-import AudioRecorder from '@/components/Recorder/AudioRecorder';
 import GridContainer from '@/components/GridContainer';
 import ShowCaptions from '@/components/Caption/showCaptions';
-import { startRecording, stopRecording } from '@/components/Recorder/Recording';
+import RemoteScreenShare from '@/components/remoteScreenShare';
 
 export default function Component({ params }: { params: { roomId: string } }) {
   const { isVideoOn, enableVideo, disableVideo, stream } = useLocalVideo();
@@ -57,69 +52,30 @@ export default function Component({ params }: { params: { roomId: string } }) {
     name,
     isChatOpen,
     isParticipantsOpen,
-    setShowAcceptRequest,
-    showAcceptRequest,
-    addRequestedPeers,
     addChatMessage,
     activeBg,
-    setActiveBg,
     videoDevice,
     audioInputDevice,
     layout,
-    setLayout,
     isRecordAudio,
   } = useStudioState();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [showInviteGrid, setShowInviteGrid] = useState(true);
-  const [showRequestGrid, setShowRequestGrid] = useState(true);
   const { peerIds } = usePeerIds({
     roles: [Role.HOST, Role.GUEST],
   });
   const [isCopied, setIsCopied] = useState(false);
-  const [isRequestSent, setIsRequestSent] = useState(false);
-  const [requestedPeerId, setRequestedPeerId] = useState('');
   const router = useRouter();
   const { peerId } = useLocalPeer();
   const { metadata, role } = useLocalPeer<PeerMetadata>();
   const { videoTrack, audioTrack, shareStream } = useLocalScreenShare();
-  const { state, room } = useRoom({
-    onJoin: async () => {
-      setTimeout(async () => {
-        const recording = await startRecording(params.roomId);
-        console.log(recording);
-      }, 5000);
-    },
+  const { state } = useRoom({
     onLeave: async () => {
-      const recording = await stopRecording(params.roomId);
-      console.log(recording);
       router.push(`/${params.roomId}/lobby`);
     },
   });
 
-  useEffect(() => {
-    if (shareStream) {
-      setShowInviteGrid(false);
-    }
-  }, [shareStream]);
-
-  const { sendData } = useDataMessage({
+  useDataMessage({
     async onMessage(payload, from, label) {
-      if (label === 'playMusic' && from !== peerId) {
-        const audio = new Audio(payload);
-        audio.play();
-      }
-      if (
-        label === 'requestForMainStage' &&
-        from !== peerId &&
-        (role === Role.HOST || role === Role.CO_HOST)
-      ) {
-        setShowAcceptRequest(true);
-        addRequestedPeers(from);
-        setRequestedPeerId(from);
-        setTimeout(() => {
-          setShowAcceptRequest(false);
-        }, 5000);
-      }
       if (label === 'chat') {
         const { message, name } = JSON.parse(payload);
         addChatMessage({
@@ -128,7 +84,6 @@ export default function Component({ params }: { params: { roomId: string } }) {
           isUser: from === peerId,
         });
       }
-
       if (label === 'file') {
         const { message, fileName, name } = JSON.parse(payload);
         // fetch file from message and display it
@@ -139,31 +94,12 @@ export default function Component({ params }: { params: { roomId: string } }) {
           fileName,
         });
       }
-
-      if (label === 'bgChange' && from !== peerId) {
-        setActiveBg(payload);
-      }
-      if (label === 'layout') {
-        const { layout } = JSON.parse(payload);
-        if (layout) {
-          setLayout(layout);
-        }
-      }
       if (label === 'server-message') {
         const { s3URL } = JSON.parse(payload);
         console.log('s3URL', s3URL);
       }
     },
   });
-
-  const getRoomData = async () => {
-    const roomData = (await roomDB.get(params.roomId)) as roomDetails;
-    const activeBackground = roomData?.activeBackground;
-    if (activeBackground) {
-      setActiveBg(activeBackground);
-    }
-    setLayout(roomData?.layout || 1);
-  };
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -209,12 +145,6 @@ export default function Component({ params }: { params: { roomId: string } }) {
     }
   }, [audioInputDevice]);
 
-  useEffectOnce(() => {
-    if (activeBg === 'bg-black') {
-      getRoomData();
-    }
-  });
-
   return (
     <div className={clsx('flex flex-col h-screen bg-black')}>
       <header className='flex items-center justify-between p-4'>
@@ -248,7 +178,6 @@ export default function Component({ params }: { params: { roomId: string } }) {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          <SettingsDialog />
         </div>
       </header>
       <main
@@ -265,20 +194,19 @@ export default function Component({ params }: { params: { roomId: string } }) {
         <div className='flex w-full h-full p-2'>
           {shareStream && (
             <div className='w-3/4'>
-              <GridContainer className='w-full h-full border'>
+              <GridContainer className='w-full h-full'>
                 <>
                   <Video
                     stream={videoTrack && new MediaStream([videoTrack])}
-                    name={metadata?.displayName ?? 'guest'}
-                  />
-                  <AudioRecorder
-                    stream={audioTrack && new MediaStream([audioTrack])}
                     name={metadata?.displayName ?? 'guest'}
                   />
                 </>
               </GridContainer>
             </div>
           )}
+          {peerIds.map((peerId) => (
+            <RemoteScreenShare key={peerId} peerId={peerId} />
+          ))}
           <section
             className={clsx(
               'justify-center gap-4 px-4',
@@ -301,12 +229,6 @@ export default function Component({ params }: { params: { roomId: string } }) {
                       stream={stream}
                       name={metadata?.displayName ?? 'guest'}
                     />
-                    {isAudioOn && isRecordAudio && (
-                      <AudioRecorder
-                        stream={audioStream}
-                        name={metadata?.displayName ?? 'guest'}
-                      />
-                    )}
                   </>
                 ) : (
                   <div className='flex text-3xl font-semibold items-center justify-center w-24 h-24 bg-gray-700 text-gray-200 rounded-full'>
@@ -326,15 +248,12 @@ export default function Component({ params }: { params: { roomId: string } }) {
         {isChatOpen && <ChatBar />}
         {isParticipantsOpen && <ParticipantsBar />}
       </main>
-      {/* <ShowCaptions
-        audioStream={audioStream}
+      <ShowCaptions
+        mediaStream={audioStream}
         name={metadata?.displayName}
         localPeerId={peerId}
-      /> */}
+      />
       <BottomBar />
-      <div className='absolute bottom-6 right-6'>
-        {showAcceptRequest && <AcceptRequest peerId={requestedPeerId} />}
-      </div>
     </div>
   );
 }

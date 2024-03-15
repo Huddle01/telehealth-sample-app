@@ -19,10 +19,10 @@ const ShowCaptions = ({ mediaStream, name, localPeerId }: Props) => {
   const [remoteSpeaker, setRemoteSpeaker] = useState('');
   const { sendData } = useDataMessage({
     onMessage(payload, from, label) {
-      if (from !== localPeerId && label === 'captions') {
+      if (label === 'captions') {
         const { message, name } = JSON.parse(payload);
         setRemoteCaptions(message);
-        setRemoteSpeaker(name);
+        setRemoteSpeaker(localPeerId === from ? 'You' : name);
       }
     },
   });
@@ -57,9 +57,6 @@ const ShowCaptions = ({ mediaStream, name, localPeerId }: Props) => {
 
   const encodePCMChunk = useCallback(
     (chunk: any) => {
-      const microphoneStream = new MicrophoneStream();
-      if (!mediaStream) return;
-      microphoneStream.setStream(mediaStream);
       const input = MicrophoneStream.toRaw(chunk);
       let offset = 0;
       const buffer = new ArrayBuffer(input.length * 2);

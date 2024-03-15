@@ -3,12 +3,14 @@ import {
   useLocalScreenShare,
   useRemoteAudio,
   useRemotePeer,
+  useRemoteScreenShare,
   useRemoteVideo,
 } from '@huddle01/react/hooks';
 import Video from './Media/Video';
 import Audio from './Media/Audio';
 import GridContainer from './GridContainer';
 import clsx from 'clsx';
+import { useStudioState } from '@/store/studioState';
 
 interface RemotePeerProps {
   peerId: string;
@@ -18,12 +20,17 @@ const RemotePeer = ({ peerId }: RemotePeerProps) => {
   const { stream: videoStream } = useRemoteVideo({ peerId });
   const { stream: audioStream } = useRemoteAudio({ peerId });
   const { metadata } = useRemotePeer<PeerMetadata>({ peerId });
-  const { shareStream } = useLocalScreenShare();
+  const { isScreenShared } = useStudioState();
 
   return (
     <GridContainer
-      className={clsx(shareStream ? 'w-full h-full my-3 mx-1' : '')}
+      className={clsx(isScreenShared ? 'w-full h-full my-3 mx-1' : '')}
     >
+      {metadata?.isHandRaised && (
+        <span className='absolute top-4 right-4 text-4xl text-gray-200 font-medium'>
+          ✋
+        </span>
+      )}
       {videoStream ? (
         <Video stream={videoStream} name={metadata?.displayName ?? 'guest'} />
       ) : (

@@ -20,9 +20,6 @@ const BottomBar = () => {
   const { isVideoOn, enableVideo, disableVideo } = useLocalVideo();
   const { leaveRoom, room } = useRoom();
   const { role, metadata, updateMetadata } = useLocalPeer<PeerMetadata>();
-  const { startScreenShare, stopScreenShare, shareStream } =
-    useLocalScreenShare();
-
   const {
     isChatOpen,
     setIsChatOpen,
@@ -31,9 +28,22 @@ const BottomBar = () => {
     isRecording,
     setIsRecording,
     isUploading,
-    isScreenShareDisabled,
-    setIsScreenShareDisabled,
+    isScreenShared,
+    setIsScreenShared,
   } = useStudioState();
+  const { startScreenShare, stopScreenShare, shareStream } =
+    useLocalScreenShare({
+      onProduceStart(data) {
+        if (data) {
+          setIsScreenShared(true);
+        }
+      },
+      onProduceClose(label) {
+        if (label === 'screen') {
+          setIsScreenShared(false);
+        }
+      },
+    });
 
   const handleRecording = async () => {
     if (isRecording) {
@@ -119,12 +129,10 @@ const BottomBar = () => {
               stopScreenShare();
             } else {
               startScreenShare();
-              setIsScreenShareDisabled(true);
             }
           }}
-          disabled={isScreenShareDisabled}
           className={clsx(
-            (shareStream !== null || !isScreenShareDisabled) && 'bg-gray-500'
+            (shareStream !== null || isScreenShared) && 'bg-gray-500'
           )}
         >
           {BasicIcons.screenShare}

@@ -12,15 +12,19 @@ interface RemotePeerProps {
 }
 
 const RemoteScreenShare = ({ peerId }: RemotePeerProps) => {
-  const { videoTrack, audioTrack } = useRemoteScreenShare({ peerId });
+  const { setIsScreenShared } = useStudioState();
+  const { videoTrack, audioTrack } = useRemoteScreenShare({
+    peerId,
+    onPlayable(data) {
+      if (data) {
+        setIsScreenShared(true);
+      }
+    },
+    onClose() {
+      setIsScreenShared(false);
+    },
+  });
   const { metadata } = useRemotePeer<PeerMetadata>({ peerId });
-  const { setIsScreenShareDisabled } = useStudioState();
-
-  useEffect(() => {
-    if (videoTrack) {
-      setIsScreenShareDisabled(true);
-    }
-  }, [videoTrack]);
 
   return (
     <>

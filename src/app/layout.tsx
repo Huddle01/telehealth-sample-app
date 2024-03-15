@@ -5,7 +5,7 @@ import HuddleContextProvider from "@/context/HuddleContextProvider";
 import { Web3Modal } from "@/context/Web3Modal";
 
 export const metadata: Metadata = {
-  title: "Studio01",
+  title: "Health01",
   description: "Studio to record podcasts and videos",
 };
 

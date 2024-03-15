@@ -57,7 +57,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
     videoDevice,
     audioInputDevice,
     layout,
-    isRecordAudio,
+    isScreenShared,
   } = useStudioState();
   const videoRef = useRef<HTMLVideoElement>(null);
   const { peerIds } = usePeerIds({
@@ -67,7 +67,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
   const router = useRouter();
   const { peerId } = useLocalPeer();
   const { metadata, role } = useLocalPeer<PeerMetadata>();
-  const { videoTrack, audioTrack, shareStream } = useLocalScreenShare();
+  const { videoTrack, shareStream } = useLocalScreenShare();
   const { state } = useRoom({
     onLeave: async () => {
       router.push(`/${params.roomId}/lobby`);
@@ -148,7 +148,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
   return (
     <div className={clsx('flex flex-col h-screen bg-black')}>
       <header className='flex items-center justify-between p-4'>
-        <h1 className='text-white text-xl font-semibold'>Studio01</h1>
+        <h1 className='text-white text-xl font-semibold'>Health01</h1>
         <div className='flex space-x-3'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -160,10 +160,12 @@ export default function Component({ params }: { params: { roomId: string } }) {
             <DropdownMenuContent>
               <div className='flex space-x-2'>
                 <span className='p-2 bg-gray-700/50 rounded-lg'>
-                  http://{window.location.host}/{params.roomId}
+                  {typeof window !== 'undefined' &&
+                    `http://${window.location.host}/${params.roomId}`}
                 </span>
                 <Button
                   onClick={() => {
+                    if (typeof window === 'undefined') return;
                     navigator.clipboard.writeText(
                       `http://${window.location.host}/${params.roomId}`
                     );
@@ -181,7 +183,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
         </div>
       </header>
       <main
-        className={`transition-all ease-in-out flex items-center justify-center flex-1 duration-300 py-4 w-full h-full`}
+        className={`transition-all ease-in-out flex items-center justify-center flex-1 duration-300 w-full h-full`}
         style={{
           backgroundColor: activeBg === 'bg-black' ? 'black' : undefined,
           backgroundImage:
@@ -209,14 +211,17 @@ export default function Component({ params }: { params: { roomId: string } }) {
           ))}
           <section
             className={clsx(
-              'justify-center gap-4 px-4',
-              shareStream ? 'flex flex-col w-1/4' : 'flex flex-wrap w-full',
-              layout === 1 ? 'h-full' : 'h-3/5'
+              'justify-center px-4',
+              isScreenShared
+                ? 'flex flex-col w-1/4'
+                : 'flex flex-wrap gap-4 w-full'
             )}
           >
             {role !== Role.BOT && (
               <GridContainer
-                className={clsx(shareStream ? 'w-full h-full my-3 mx-1' : '')}
+                className={clsx(
+                  isScreenShared ? 'w-full h-full my-3 mx-1' : ''
+                )}
               >
                 {metadata?.isHandRaised && (
                   <span className='absolute top-4 right-4 text-4xl text-gray-200 font-medium'>

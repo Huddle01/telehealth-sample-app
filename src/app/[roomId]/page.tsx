@@ -96,7 +96,7 @@ export default function Component({ params }: { params: { roomId: string } }) {
       }
       if (label === 'server-message') {
         const { s3URL } = JSON.parse(payload);
-        console.log('s3URL', s3URL);
+        alert(`Your recording: ${s3URL}`);
       }
     },
   });

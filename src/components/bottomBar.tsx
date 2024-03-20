@@ -77,9 +77,9 @@ const BottomBar = () => {
             {isUploading ? BasicIcons.spin : BasicIcons.record}{' '}
             {isRecording
               ? isUploading
-                ? 'Starting...'
-                : 'Stop Capturing'
-              : 'Summarize'}
+                ? 'Recording...'
+                : 'Stop Recording'
+              : 'Record'}
           </Button>
         ) : (
           <div className='w-24' />

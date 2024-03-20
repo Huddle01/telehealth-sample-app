@@ -75,7 +75,7 @@ const ShowCaptions = ({ mediaStream, name, localPeerId }: Props) => {
       async function* () {
         if (!microPhoneStream) return;
         try {
-          for await (const chunk of microPhoneStream) {
+          for await (const chunk of microPhoneStream as any) {
             if (chunk.length <= MAX_RATE) {
               yield { AudioEvent: { AudioChunk: encodePCMChunk(chunk) } };
             }

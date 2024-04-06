@@ -30,7 +30,6 @@ import Video from '@/components/Media/Video';
 import { Role } from '@huddle01/server-sdk/auth';
 import clsx from 'clsx';
 import GridContainer from '@/components/GridContainer';
-import ShowCaptions from '@/components/Caption/showCaptions';
 import RemoteScreenShare from '@/components/remoteScreenShare';
 
 export default function Component({ params }: { params: { roomId: string } }) {
@@ -253,11 +252,6 @@ export default function Component({ params }: { params: { roomId: string } }) {
         {isChatOpen && <ChatBar />}
         {isParticipantsOpen && <ParticipantsBar />}
       </main>
-      <ShowCaptions
-        mediaStream={audioStream}
-        name={metadata?.displayName}
-        localPeerId={peerId}
-      />
       <BottomBar />
     </div>
   );

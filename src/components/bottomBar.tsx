@@ -119,7 +119,7 @@ const BottomBar = () => {
         </ChangeDevice>
         <ChangeDevice deviceType='speaker'>
           <button
-            onClick={() => {}}
+            onClick={() => { }}
             className='bg-gray-600/50 p-2.5 rounded-lg'
           >
             {BasicIcons.speaker}
@@ -127,13 +127,13 @@ const BottomBar = () => {
         </ChangeDevice>
         <ButtonWithIcon
           onClick={() => {
-            if (isScreenShared) {
-              toast.error('Only one screen share is allowed at a time');
-              return;
-            }
             if (shareStream !== null) {
               stopScreenShare();
             } else {
+              if (isScreenShared) {
+                toast.error('Only one screen share is allowed at a time');
+                return;
+              }
               startScreenShare();
             }
           }}
